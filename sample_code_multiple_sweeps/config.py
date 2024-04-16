@@ -32,7 +32,7 @@ class Config:
         self.batch_size = 8000
         self.no_of_batches = 10000 # How many batches to go through during training.
         self.weight_init_scaling = 2.#10. # default is 1. Set to larger values to get more variance in initial weights.
-        self.optimizer = 'adadelta'
+        self.optimizer = 'sgd'
         self.lr = 0.5
         self.decay = 0.001
         self.momentum = 0.25
