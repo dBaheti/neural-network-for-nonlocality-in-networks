@@ -5,12 +5,27 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Input, Concatenate, Lambda
 from scipy.stats import entropy
+from matplotlib.lines import Line2D
 
 import config as cf
 from targets import target_distribution_gen
 
+# Verifying GPU availability
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Optional: Setting TensorFlow to grow memory usage on the GPU as needed
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        print(f"Using GPU: {gpus}")
+    except RuntimeError as e:
+        print(f"Failed to set memory growth: {e}")
+else:
+    print("No GPU found, using the CPU instead.")
+
 def build_model():
-    cf.pnn.inputsize = 3 # Number of hidden variables, e.g. alpha, beta, gamma
+    cf.pnn.inputsize = 3 # Number of hidden variables, i.e., alpha, beta, gamma
+
     """ Build NN for triangle """
     # Hidden variables as inputs.
     inputTensor = Input((cf.pnn.inputsize,))
@@ -139,9 +154,9 @@ def single_run():
         model = load_model(cf.pnn.start_from,custom_objects={'customLoss': customLoss})
 
     if cf.pnn.optimizer.lower() == 'adadelta':
-        optimizer = tf.keras.optimizers.Adadelta(lr=cf.pnn.lr, rho=0.95, epsilon=None, decay=cf.pnn.decay)
+        optimizer = tf.keras.optimizers.legacy.Adadelta(lr=cf.pnn.lr, rho=0.95, epsilon=None, decay=cf.pnn.decay)
     elif cf.pnn.optimizer.lower() == 'sgd':
-        optimizer = tf.keras.optimizers.SGD(lr=cf.pnn.lr, decay=cf.pnn.decay, momentum=cf.pnn.momentum, nesterov=True)
+        optimizer = tf.keras.optimizers.legacy.SGD(lr=cf.pnn.lr, decay=cf.pnn.decay, momentum=cf.pnn.momentum, nesterov=True)
     else:
         optimizer = tf.keras.optimizers.SGD(lr=cf.pnn.lr, decay=cf.pnn.decay, momentum=cf.pnn.momentum, nesterov=True)
         print("\n\nWARNING!!! Optimizer {} not recognized. Please implement it if you want to use it. Using SGD instead.\n\n".format(cf.pnn.optimizer))
@@ -209,7 +224,7 @@ def update_results(model_new,i):
     # Plot distances
     plt.clf()
     plt.title("D(p_target,p_machine)")
-    plt.plot(cf.pnn.target_ids,cf.pnn.euclidean_distances, 'ro')
+    plt.plot((cf.pnn.target_ids)**2,cf.pnn.euclidean_distances, 'ro')
     if i!=0 and cf.pnn.sweep_id==0:
         plt.ylim(bottom=0,top = np.sort(np.unique(cf.pnn.euclidean_distances))[-2]*1.2)
     else:
@@ -225,92 +240,92 @@ def update_results(model_new,i):
     plt.savefig("./figs_distributions/target_"+str(i).zfill(int(np.ceil(np.log10(cf.pnn.target_ids.shape[0]))))+".png")
 
     # Plot strategies (only turn on if you're really interested, since it takes quite a bit of time to update in each step!)
-    plot_strategies(i)
+    #plot_strategies(i)
 
-def plot_strategies(i):
-    sample_size = 4000 #how many hidden variable triples to sample from
-    random_sample_size = 5 #for each hidden variable triple, how many times to sample from strategies.
-    alpha_value = 0.25# 3/random_sample_size #opacity of dots. 0.1 or 0.25 make for nice paintings.
-    markersize = 5000/np.sqrt(sample_size)
+# def plot_strategies(i):
+#     sample_size = 4000 #how many hidden variable triples to sample from
+#     random_sample_size = 5 #for each hidden variable triple, how many times to sample from strategies.
+#     alpha_value = 0.25# 3/random_sample_size #opacity of dots. 0.1 or 0.25 make for nice paintings.
+#     markersize = 5000/np.sqrt(sample_size)
 
-    modelpath = './saved_models/best_'+str(i).zfill(int(np.ceil(np.log10(cf.pnn.target_distributions.shape[0]))))+'.hdf5'
+#     modelpath = './saved_models/best_'+str(i).zfill(int(np.ceil(np.log10(cf.pnn.target_distributions.shape[0]))))+'.hdf5'
 
-    input_data = generate_x_test()
-    inputs = next(input_data)
-    while inputs.shape[0] < sample_size:
-        inputs = np.concatenate((inputs, next(input_data)),axis=0)
-    inputs = inputs[:sample_size,:]
+#     input_data = generate_x_test()
+#     inputs = next(input_data)
+#     while inputs.shape[0] < sample_size:
+#         inputs = np.concatenate((inputs, next(input_data)),axis=0)
+#     inputs = inputs[:sample_size,:]
 
-    K.clear_session()
-    model = load_model(modelpath,custom_objects={'customLoss': customLoss})
-    y = model.predict(inputs)
+#     K.clear_session()
+#     model = load_model(modelpath,custom_objects={'customLoss': customLoss})
+#     y = model.predict(inputs)
 
-    y_a = y[:,0:cf.pnn.a_outputsize]
-    y_b = y[:,cf.pnn.a_outputsize:cf.pnn.a_outputsize+cf.pnn.b_outputsize]
-    y_c = y[:,cf.pnn.a_outputsize+cf.pnn.b_outputsize:cf.pnn.a_outputsize+cf.pnn.b_outputsize+cf.pnn.c_outputsize]
+#     y_a = y[:,0:cf.pnn.a_outputsize]
+#     y_b = y[:,cf.pnn.a_outputsize:cf.pnn.a_outputsize+cf.pnn.b_outputsize]
+#     y_c = y[:,cf.pnn.a_outputsize+cf.pnn.b_outputsize:cf.pnn.a_outputsize+cf.pnn.b_outputsize+cf.pnn.c_outputsize]
 
-    y_a = np.array([np.random.choice(np.arange(cf.pnn.a_outputsize),p=y_a[j,:], size = random_sample_size) for j in range(y_a.shape[0])]).reshape(random_sample_size*sample_size)
-    y_b = np.array([np.random.choice(np.arange(cf.pnn.b_outputsize),p=y_b[j,:], size = random_sample_size) for j in range(y_b.shape[0])]).reshape(random_sample_size*sample_size)
-    y_c = np.array([np.random.choice(np.arange(cf.pnn.c_outputsize),p=y_c[j,:], size = random_sample_size) for j in range(y_c.shape[0])]).reshape(random_sample_size*sample_size)
+#     y_a = np.array([np.random.choice(np.arange(cf.pnn.a_outputsize),p=y_a[j,:], size = random_sample_size) for j in range(y_a.shape[0])]).reshape(random_sample_size*sample_size)
+#     y_b = np.array([np.random.choice(np.arange(cf.pnn.b_outputsize),p=y_b[j,:], size = random_sample_size) for j in range(y_b.shape[0])]).reshape(random_sample_size*sample_size)
+#     y_c = np.array([np.random.choice(np.arange(cf.pnn.c_outputsize),p=y_c[j,:], size = random_sample_size) for j in range(y_c.shape[0])]).reshape(random_sample_size*sample_size)
 
-    training_mean = 0.5
-    training_sigma = np.sqrt(1/12)
-    inputs = inputs* training_sigma + training_mean
-    # Tile and reshape since we sampled random_sample_size times from each input.
-    inputs = np.array(np.array([np.tile(inputs[i,:],(random_sample_size,1)) for i in range(inputs.shape[0])])).reshape(random_sample_size*sample_size,3)
+#     training_mean = 0.5
+#     training_sigma = np.sqrt(1/12)
+#     inputs = inputs* training_sigma + training_mean
+#     # Tile and reshape since we sampled random_sample_size times from each input.
+#     inputs = np.array(np.array([np.tile(inputs[i,:],(random_sample_size,1)) for i in range(inputs.shape[0])])).reshape(random_sample_size*sample_size,3)
 
-    alphas = inputs[:,0]
-    betas = inputs[:,1]
-    gammas = inputs[:,2]
-    inputs_a = np.stack((betas,gammas)).transpose()
-    inputs_b = np.stack((alphas,gammas)).transpose()
-    inputs_c = np.stack((alphas,betas)).transpose()
+#     alphas = inputs[:,0]
+#     betas = inputs[:,1]
+#     gammas = inputs[:,2]
+#     inputs_a = np.stack((betas,gammas)).transpose()
+#     inputs_b = np.stack((alphas,gammas)).transpose()
+#     inputs_c = np.stack((alphas,betas)).transpose()
 
-    colordict = {0:'red',1:'green',2:'blue',3:'orange'}
-    colors_alice = [colordict[i] for i in y_a]
-    colors_bob = [colordict[i] for i in y_b]
-    colors_charlie = [colordict[i] for i in y_c]
+#     colordict = {0:'red',1:'green',2:'blue',3:'orange'}
+#     colors_alice = [colordict[i] for i in y_a]
+#     colors_bob = [colordict[i] for i in y_b]
+#     colors_charlie = [colordict[i] for i in y_c]
 
-    from matplotlib.lines import Line2D
-    legend_elements = [Line2D([0], [0], marker='o', color='w', label='0',
-                              markerfacecolor='red', markersize=8),
-                        Line2D([0], [0], marker='o', color='w', label='1',
-                                markerfacecolor='green', markersize=8),
-                        Line2D([0], [0], marker='o', color='w', label='2',
-                                markerfacecolor='blue', markersize=8),
-                        Line2D([0], [0], marker='o', color='w', label='3',
-                                markerfacecolor='orange', markersize=8)]
+#     from matplotlib.lines import Line2D
+#     legend_elements = [Line2D([0], [0], marker='o', color='w', label='0',
+#                               markerfacecolor='red', markersize=8),
+#                         Line2D([0], [0], marker='o', color='w', label='1',
+#                                 markerfacecolor='green', markersize=8),
+#                         Line2D([0], [0], marker='o', color='w', label='2',
+#                                 markerfacecolor='blue', markersize=8),
+#                         Line2D([0], [0], marker='o', color='w', label='3',
+#                                 markerfacecolor='orange', markersize=8)]
 
-    fig, axes = plt.subplots(2, 2, figsize=(12,12))
-    plt.subplot(2,2,1)
-    plt.scatter(inputs_a[:,0],inputs_a[:,1], color = colors_alice, alpha=alpha_value, s = markersize)
-    plt.gca().invert_yaxis()
-    plt.title('Response of Alice to her inputs.')
-    plt.xlabel(r'$\beta$')
-    plt.ylabel(r'$\gamma$')
+#     fig, axes = plt.subplots(2, 2, figsize=(12,12))
+#     plt.subplot(2,2,1)
+#     plt.scatter(inputs_a[:,0],inputs_a[:,1], color = colors_alice, alpha=alpha_value, s = markersize)
+#     plt.gca().invert_yaxis()
+#     plt.title('Response of Alice to her inputs.')
+#     plt.xlabel(r'$\beta$')
+#     plt.ylabel(r'$\gamma$')
 
-    plt.subplot(2,2,2)
-    plt.scatter(inputs_b[:,0],inputs_b[:,1], color = colors_bob, alpha=alpha_value, s = markersize)
-    plt.gca().invert_yaxis()
-    plt.title('Response of Bob to his inputs.')
-    plt.xlabel(r'$\alpha$')
-    plt.ylabel(r'$\gamma$')
+#     plt.subplot(2,2,2)
+#     plt.scatter(inputs_b[:,0],inputs_b[:,1], color = colors_bob, alpha=alpha_value, s = markersize)
+#     plt.gca().invert_yaxis()
+#     plt.title('Response of Bob to his inputs.')
+#     plt.xlabel(r'$\alpha$')
+#     plt.ylabel(r'$\gamma$')
 
-    plt.subplot(2,2,3)
-    plt.scatter(inputs_c[:,1],inputs_c[:,0], color = colors_charlie, alpha=alpha_value, s = markersize)
-    plt.gca().invert_yaxis()
-    plt.title('Response of Charlie to his inputs.')
-    plt.xlabel(r'$\beta$')
-    plt.ylabel(r'$\alpha$')
+#     plt.subplot(2,2,3)
+#     plt.scatter(inputs_c[:,1],inputs_c[:,0], color = colors_charlie, alpha=alpha_value, s = markersize)
+#     plt.gca().invert_yaxis()
+#     plt.title('Response of Charlie to his inputs.')
+#     plt.xlabel(r'$\beta$')
+#     plt.ylabel(r'$\alpha$')
 
-    plt.subplot(2,2,4)
-    plt.plot(cf.pnn.target_distributions[i,:],'ro',markersize=5)
-    plt.plot(cf.pnn.distributions[i,:],'gs',alpha = 0.85,markersize=5)
-    plt.title('Target (red) and learned (green) distributions')
-    plt.xlabel('outcome')
-    plt.ylabel('probability of outcome')
+#     plt.subplot(2,2,4)
+#     plt.plot(cf.pnn.target_distributions[i,:],'ro',markersize=5)
+#     plt.plot(cf.pnn.distributions[i,:],'gs',alpha = 0.85,markersize=5)
+#     plt.title('Target (red) and learned (green) distributions')
+#     plt.xlabel('outcome')
+#     plt.ylabel('probability of outcome')
 
-    fig.suptitle(cf.pnn.target_distr_name +', distribution no. '+str(i), fontsize = 14)
-    #fig.legend(handles=legend_elements, loc='lower right',bbox_to_anchor = (0.75,0.25))
-    fig.legend(handles=legend_elements, loc='upper right')
-    plt.savefig('./figs_strategies/strat_'+str(i))
+#     fig.suptitle(cf.pnn.target_distr_name +', distribution no. '+str(i), fontsize = 14)
+#     #fig.legend(handles=legend_elements, loc='lower right',bbox_to_anchor = (0.75,0.25))
+#     fig.legend(handles=legend_elements, loc='upper right')
+#     plt.savefig('./figs_strategies/strat_'+str(i))

@@ -12,10 +12,10 @@ class Config:
 
         # Define target distributions to sweep through.
         ## Set up custom target distribution generator function
-        self.target_distr_name = "Fritz-visibility" # check targets.py for possible names
-        self.param_range = np.linspace(0.5, 1, 5)
-        self.which_param = 2 # Specifies whether we want to sweep through param1, a distribution parameter (not relevant sometimes, e.g. for elegant distr.), or param2, the noise parameter.
-        self.other_param = 1 # Fixes other parameter, which we don't sweep through.
+        self.target_distr_name = "Renou combined noise" # check targets.py for possible names
+        self.param_range = np.linspace(np.sqrt(0.5), 1, 25)
+        self.which_param = 1 # Specifies whether we want to sweep through param1, a distribution parameter (not relevant sometimes, e.g. for elegant distr.), or param2, the noise parameter.
+        self.other_param = 0.95 # Fixes other parameter, which we don't sweep through.
 
         ## Set target distributions and their ids
         self.target_distributions = target_distribution_gen_all(self.target_distr_name,  self.param_range, self.which_param, self.other_param)
@@ -25,8 +25,8 @@ class Config:
         self.c_outputsize = 4 # Number of outputs for Charlie
 
         # Neural network parameters
-        self.latin_depth = 5
-        self.latin_width = 30
+        self.latin_depth = 10
+        self.latin_width = 60
 
         # Training procedure parameters
         self.batch_size = 8000
