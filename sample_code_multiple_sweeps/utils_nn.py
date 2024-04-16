@@ -224,7 +224,7 @@ def update_results(model_new,i):
     # Plot distances
     plt.clf()
     plt.title("D(p_target,p_machine)")
-    plt.plot((cf.pnn.target_ids)**2,cf.pnn.euclidean_distances, 'ro')
+    plt.plot(cf.pnn.target_ids,cf.pnn.euclidean_distances, 'ro')
     if i!=0 and cf.pnn.sweep_id==0:
         plt.ylim(bottom=0,top = np.sort(np.unique(cf.pnn.euclidean_distances))[-2]*1.2)
     else:
