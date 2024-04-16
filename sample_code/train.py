@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import config as cf
 from targets import target_distribution_gen_all
-from utils_nn import np_distance, np_euclidean_distance, single_run, single_evaluation, plot_strategies
+from utils_nn import np_distance, np_euclidean_distance, single_run, single_evaluation #plot_strategies
 
 def single_sweep_training():
     """ Goes through all target distributions in cf.pnn.target_distributions once with the config values given in config.py """
@@ -31,7 +31,7 @@ def single_sweep_training():
         # Plot distances
         plt.clf()
         fig = plt.figure(figsize=(6.4, 4.8))
-        plt.plot(cf.pnn.target_ids,cf.pnn.euclidean_distances, 'ro')
+        plt.plot((cf.pnn.target_ids)**2,cf.pnn.euclidean_distances, 'ro')
         plt.title("D(p_target,p_machine)")
         if i!=0:
             plt.ylim(bottom=0,top = np.sort(np.unique(cf.pnn.euclidean_distances))[-2]*1.2)
@@ -49,7 +49,7 @@ def single_sweep_training():
         plt.savefig("./figs_distributions/target_"+str(i).zfill(int(np.ceil(np.log10(cf.pnn.target_distributions.shape[0]))))+".png")
 
         # Plots the strategies (comment out if you're not particularly interested - it's a bit slow.)
-        plot_strategies(i)
+        #plot_strategies(i)
 
 if __name__ == '__main__':
     # Create directories for saving stuff
@@ -59,6 +59,6 @@ if __name__ == '__main__':
     # Set up the Parameters of the Neural Network (i.e. the config object)
     cf.initialize()
     print("SUMS")
-    print(np.sum(cf.pnn.target_distributions,axis=1))
+    print(np.sum(cf.pnn.target_distributions))
     # Run single sweep
     single_sweep_training()
